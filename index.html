@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>勉強ノート | 折りたたみQ&A（Markdown/Asciidoc対応）</title>
+  <!-- Markdown/Asciidoc ランタイムレンダラ（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/asciidoctor@2/dist/browser/asciidoctor.min.js"></script>
+  <style>
+    :root {
+      --fg: #111827; /* slate-900 */
+      --fg-muted: #4b5563; /* gray-600 */
+      --bg: #ffffff;
+      --card: #f9fafb; /* gray-50 */
+      --border: #e5e7eb; /* gray-200 */
+      --accent: #2563eb; /* blue-600 */
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      color: var(--fg); background: var(--bg);
+    }
+    .container { max-width: 880px; margin: 0 auto; padding: 16px; }
+    header { display:flex; gap:12px; align-items:center; justify-content:space-between; padding: 12px 0 6px; position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 20px; margin: 0; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    select, input[type="search"], button, a.btn {
+      font: inherit; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+      border-radius: 10px; padding: 8px 10px; height: 38px; box-sizing: border-box;
+    }
+    a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    button.primary, a.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    main { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+
+    /* 折りたたみ UI */
+    .qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; }
+    .qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
+    .qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
+    .qa-body { padding: 0 14px 14px 46px; display:none; }
+    .qa-item[aria-expanded="true"] .qa-body { display:block; }
+    .qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
+
+    /* Markdown/Asciidoc本文の共通スタイル */
+    .content :is(h1,h2,h3) { scroll-margin-top: 80px; }
+    .content h2 { border-left: 4px solid var(--accent); padding-left: 8px; }
+    .content pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; overflow:auto; }
+    .content code:not(pre code) { background:#f3f4f6; padding:2px 6px; border-radius:6px; }
+    .muted { color: var(--fg-muted); font-size: 12px; }
+
+    @media (max-width: 600px) {
+      header { gap: 8px; }
+      .controls { width: 100%; }
+      .controls > * { flex: 1 1 auto; }
+      select { min-width: 40%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>勉強ノート</h1>
+      <div class="controls">
+        <select id="docSelect" title="ページを選択">
+          <!-- JS で DOCS から埋め込み -->
+        </select>
+        <input id="q" type="search" placeholder="このページ内を検索" title="/ でフォーカス" />
+        <a class="btn" id="openRaw" target="_blank" rel="noopener">Rawを開く</a>
+        <a class="btn" id="editLink" target="_blank" rel="noopener">GitHubで編集</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="card">
+        <div class="muted">- 一番上のリスト項目が「質問」、その直下の入れ子リストが「答え」。<br/>- Markdown/Asciidoc内に HTML タグは不要。<br/>- 開閉状態はブラウザに保存されます。</div>
+      </div>
+      <article id="content" class="card content" aria-live="polite"></article>
+    </main>
+  </div>
+
+<script>
+/**
+ * ★ ここをあなたのリポジトリに合わせて編集してください ★
+ * - docs/ 配下に Markdown(.md) や Asciidoc(.adoc) を追加
+ * - 下の DOCS 配列にファイル名と表示名を列挙
+ * - URL の ?doc=cs.md のようなクエリでも直接指定可能
+ */
+const DOCS = [
+  { file: 'cs.md', title: 'CS 基礎' },
+  { file: 'hoge.md', title: 'ほげ' },
+  { file: 'net.adoc', title: 'ネットワーク基礎(Asciidoc)' },
+];
+const DOCS_BASE = 'docs/';
+const GH_OWNER = '<your-github-username>'; // 例: johndoe
+const GH_REPO  = '<your-repo>';            // 例: study-notes
+const GH_BRANCH= 'main';                   // 例: main
+
+// 初期デモ用: docs が未作成でも表示できるフォールバック
+const FALLBACK_MD = `# サンプル: CS 基礎\n\n- CSMA/CDとは？\n  - ステーションがキャリア検知を行うとともに、送信データの衝突が起きた場合は再送する。\n\n- CSMA/CAとは？\n  - 送信前にキャリア検知と送信予約を行い、衝突を回避する方式（主に無線LAN）。\n`;
+
+// --- ルーティング & UI 初期化 ---
+const $content = document.getElementById('content');
+const $docSelect = document.getElementById('docSelect');
+const $q = document.getElementById('q');
+const $openRaw = document.getElementById('openRaw');
+const $editLink = document.getElementById('editLink');
+
+DOCS.forEach((d, i) => {
+  const opt = document.createElement('option');
+  opt.value = d.file; opt.textContent = d.title; $docSelect.appendChild(opt);
+});
+
+$docSelect.addEventListener('change', () => navigateTo($docSelect.value));
+$q.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.blur(); }});
+document.addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement !== $q) { e.preventDefault(); $q.focus(); }});
+
+function navigateTo(file) {
+  const url = new URL(location.href);
+  url.searchParams.set('doc', file);
+  history.pushState({}, '', url);
+  loadDoc(file);
+}
+
+window.addEventListener('popstate', () => {
+  const file = new URL(location.href).searchParams.get('doc') || DOCS[0].file;
+  loadDoc(file);
+});
+
+// --- ドキュメント読み込み ---
+async function loadDoc(file) {
+  $docSelect.value = file;
+  const rawUrl = `${DOCS_BASE}${file}`;
+  $openRaw.href = rawUrl;
+  $editLink.href = `https://github.com/${GH_OWNER}/${GH_REPO}/edit/${GH_BRANCH}/${DOCS_BASE}${file}`;
+  const ext = file.split('.').pop().toLowerCase();
+
+  let text = '';
+  try {
+    const res = await fetch(rawUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error('not ok');
+    text = await res.text();
+  } catch {
+    text = (ext === 'md') ? FALLBACK_MD : `= サンプル: ネットワーク基礎\n\n* CSMA/CAとは？\n** 送信前にキャリア検知と送信予約を行い、衝突を回避する方式（主に無線LAN）。`;
+  }
+
+  if (ext === 'md') {
+    $content.innerHTML = marked.parse(text, { mangle: false, headerIds: true });
+  } else if (ext === 'adoc') {
+    const asciidoctor = Asciidoctor();
+    $content.innerHTML = asciidoctor.convert(text);
+  } else {
+    $content.textContent = '対応していない拡張子です: ' + ext;
+  }
+
+  enhanceListsToQA(file);
+}
+
+// --- リストを Q&A に変換（Markdown/Asciidoc 共通 DOM を後処理）---
+function enhanceListsToQA(file) {
+  // すべての UL/OL を探索し、子 LI が UL/OL を内包するものを Q&A 化
+  const lists = $content.querySelectorAll('ul, ol');
+  let idx = 0;
+  lists.forEach(list => {
+    list.querySelectorAll(':scope > li').forEach(li => {
+      const nested = li.querySelector(':scope > ul, :scope > ol');
+      if (!nested) return; // 入れ子がなければスキップ
+
+      const question = li.cloneNode(true); // テキスト抽出用
+      // 内側 UL/OL を除いた質問テキスト
+      question.querySelectorAll('ul, ol').forEach(el => el.remove());
+      const qText = (question.textContent || '').trim();
+
+      // 元 LI を Q&A UI に差し替え
+      const qa = document.createElement('li');
+      qa.className = 'qa-item';
+      qa.setAttribute('aria-expanded', 'false');
+
+      const btn = document.createElement('button');
+      btn.className = 'qa-header';
+      btn.setAttribute('type', 'button');
+      btn.setAttribute('aria-controls', `qa-body-${idx}`);
+      btn.innerHTML = `<span class="qa-toggle" aria-hidden="true">＋</span><span>${escapeHtml(qText)}</span>`;
+
+      const body = document.createElement('div');
+      body.className = 'qa-body';
+      body.id = `qa-body-${idx}`;
+      body.appendChild(nested);
+
+      // キー: ページ + 質問テキストのハッシュ
+      const key = `qa:${file}:${hashString(qText)}`;
+      const open = localStorage.getItem(key) === '1';
+      qa.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+      btn.addEventListener('click', () => {
+        const nowOpen = qa.getAttribute('aria-expanded') !== 'true';
+        qa.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+        btn.querySelector('.qa-toggle').textContent = nowOpen ? '－' : '＋';
+        localStorage.setItem(key, nowOpen ? '1' : '0');
+      });
+
+      // 初期トグル記号
+      if (open) btn.querySelector('.qa-toggle').textContent = '－';
+
+      qa.appendChild(btn);
+      qa.appendChild(body);
+      li.replaceWith(qa);
+      idx++;
+    });
+  });
+
+  // 検索: 単純なハイライト & ジャンプ（ページ内）
+  setupSearch();
+}
+
+function setupSearch() {
+  $q.value = '';
+  $q.oninput = () => {
+    clearHighlights();
+    const term = $q.value.trim();
+    if (!term) return;
+    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    walkTextNodes($content, node => {
+      const m = node.nodeValue.match(rx);
+      if (!m) return;
+      const span = document.createElement('span');
+      span.innerHTML = node.nodeValue.replace(rx, s => `<mark>${s}</mark>`);
+      node.replaceWith(span);
+    });
+  };
+}
+
+function clearHighlights() {
+  $content.querySelectorAll('mark').forEach(m => {
+    const parent = m.parentNode;
+    m.replaceWith(m.textContent);
+    parent.normalize();
+  });
+}
+
+function walkTextNodes(root, cb) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  let node; while ((node = walker.nextNode())) cb(node);
+}
+
+function escapeHtml(str) { return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+function hashString(s) { let h=0; for (let i=0;i<s.length;i++) { h=(h<<5)-h + s.charCodeAt(i); h|=0; } return (h>>>0).toString(16); }
+
+// 初回ロード
+(() => {
+  const params = new URL(location.href).searchParams;
+  const file = params.get('doc') || DOCS[0].file;
+  loadDoc(file);
+})();
+</script>
+</body>
+</html>
