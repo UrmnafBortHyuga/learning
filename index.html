@@ -16,6 +16,7 @@
       --card: #f9fafb; /* gray-50 */
       --border: #e5e7eb; /* gray-200 */
       --accent: #2563eb; /* blue-600 */
+      --indent-step: 12px; /* ネストインデントの基本幅（PC）*/
     }
     html, body { height: 100%; }
     body {
@@ -34,11 +35,12 @@
     button.primary, a.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
     main { display: grid; grid-template-columns: 1fr; gap: 16px; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }/* 折りたたみ UI */
-.qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; }
+.qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; --level: 0; }
 .qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
 .qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
 .qa-body { padding: 0 14px 14px 46px; display:none; }
+.qa-body ul, .qa-body ol { margin: .5em 0 .5em 1.2em; }
 .qa-item[aria-expanded="true"] .qa-body { display:block; }
 .qa-item[aria-expanded="false"] .qa-body { display:none !important; }
 .qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
@@ -51,7 +53,27 @@
 .muted { color: var(--fg-muted); font-size: 12px; }
 
 @media (max-width: 600px) {
-  header { gap: 8px; }
+  header { gap: 6px; }
+  .container { padding: 8px; }
+  .card { padding: 12px; border-radius: 12px; }
+  .controls { width: 100%; }
+  .controls > * { flex: 1 1 auto; min-width: 0; }
+  select { min-width: 45%; }
+
+  /* モバイルは“右へ押し出す”のではなく“下へ積む”レイアウト */
+  .qa-header { padding: 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+  .qa-toggle { width: 24px; height: 24px; }
+  .qa-body { padding: 8px 12px 12px 12px; }
+
+  /* ネストは左余白を増やさず、左ボーダーの太さと色で段を示す */
+  .qa-item { margin: 8px 0; border-left: calc(3px + var(--level) * 2px) solid var(--border); }
+  .qa-item[aria-expanded="true"] { border-left-color: var(--accent); }
+  /* 左余白の累積を抑える */
+  .qa-body { padding-left: 12px; }
+
+  /* 読みやすさ（Pixel 7a想定） */
+  .content { font-size: 16px; line-height: 1.7; }
+}
   .controls { width: 100%; }
   .controls > * { flex: 1 1 auto; }
   select { min-width: 40%; }
@@ -156,14 +178,13 @@ async function loadDoc(file) {
 
 // --- リストを Q&A に変換（Markdown/Asciidoc 共通 DOM を後処理）---
 function enhanceListsToQA(file) {
-  // 再帰ではなく反復で“深い層から”順にQA化していくと、3段以上でも漏れなく閉じられる
+  // 深い層から順にQA化
   const idxRef = { value: 0 };
   let changed = true;
   while (changed) {
     changed = false;
     const items = $content.querySelectorAll('li');
     for (const li of Array.from(items)) {
-      // 既にQA化されている項目はスキップ
       if (li.classList && li.classList.contains('qa-item')) continue;
       if (li.closest('.qa-item') && !hasNestedDirectOrWrapped(li)) continue;
       if (!hasNestedDirectOrWrapped(li)) continue;
@@ -171,9 +192,38 @@ function enhanceListsToQA(file) {
       changed = true;
     }
   }
-
-  // 検索: 単純なハイライト & ジャンプ（ページ内）
+  // ネスト深度を反映（モバイル用の段表示に使用）
+  applyDepthVars();
+  // 検索
   setupSearch();
+}
+
+function applyDepthVars() {
+  $content.querySelectorAll('.qa-item').forEach(qa => {
+    const d = getDepth(qa);
+    qa.style.setProperty('--level', d);
+  });
+}
+
+function getDepth(el) {
+  let d = 0, p = el.parentElement;
+  while (p) {
+    if (p.classList && p.classList.contains('qa-body')) d++;
+    p = p.parentElement;
+  }
+  return d;
+}
+
+function hasNestedDirectOrWrapped(li) {
+  for (const c of Array.from(li.children)) {
+    if (!c) continue;
+    const tag = c.tagName;
+    if (tag === 'UL' || tag === 'OL') return true;
+    if (c.classList && (c.classList.contains('ulist') || c.classList.contains('olist'))) {
+      if (c.querySelector(':scope > ul, :scope > ol')) return true;
+    }
+  }
+  return false;
 }
 
 function hasNestedDirectOrWrapped(li) {
