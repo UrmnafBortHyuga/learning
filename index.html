@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
@@ -32,31 +33,30 @@
     a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     button.primary, a.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
     main { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }/* 折りたたみ UI */
+.qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; }
+.qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
+.qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
+.qa-body { padding: 0 14px 14px 46px; display:none; }
+.qa-item[aria-expanded="true"] .qa-body { display:block; }
+.qa-item[aria-expanded="false"] .qa-body { display:none !important; }
+.qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
 
-    /* 折りたたみ UI */
-    .qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; }
-    .qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
-    .qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
-    .qa-body { padding: 0 14px 14px 46px; display:none; }
-    .qa-item[aria-expanded="true"] .qa-body { display:block; }
-    .qa-item[aria-expanded="false"] .qa-body { display:none !important; }
-    .qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
+/* Markdown/Asciidoc本文の共通スタイル */
+.content :is(h1,h2,h3) { scroll-margin-top: 80px; }
+.content h2 { border-left: 4px solid var(--accent); padding-left: 8px; }
+.content pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; overflow:auto; }
+.content code:not(pre code) { background:#f3f4f6; padding:2px 6px; border-radius:6px; }
+.muted { color: var(--fg-muted); font-size: 12px; }
 
-    /* Markdown/Asciidoc本文の共通スタイル */
-    .content :is(h1,h2,h3) { scroll-margin-top: 80px; }
-    .content h2 { border-left: 4px solid var(--accent); padding-left: 8px; }
-    .content pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; overflow:auto; }
-    .content code:not(pre code) { background:#f3f4f6; padding:2px 6px; border-radius:6px; }
-    .muted { color: var(--fg-muted); font-size: 12px; }
+@media (max-width: 600px) {
+  header { gap: 8px; }
+  .controls { width: 100%; }
+  .controls > * { flex: 1 1 auto; }
+  select { min-width: 40%; }
+}
 
-    @media (max-width: 600px) {
-      header { gap: 8px; }
-      .controls { width: 100%; }
-      .controls > * { flex: 1 1 auto; }
-      select { min-width: 40%; }
-    }
   </style>
 </head>
 <body>
@@ -71,17 +71,14 @@
         <a class="btn" id="openRaw" target="_blank" rel="noopener">Rawを開く</a>
         <a class="btn" id="editLink" target="_blank" rel="noopener">GitHubで編集</a>
       </div>
-    </header>
-
-    <main>
-      <div class="card">
-        <div class="muted">- 一番上のリスト項目が「質問」、その直下の入れ子リストが「答え」。<br/>- Markdown/Asciidoc内に HTML タグは不要。<br/>- 開閉状態はブラウザに保存されます。</div>
-      </div>
-      <article id="content" class="card content" aria-live="polite"></article>
-    </main>
+    </header><main>
+  <div class="card">
+    <div class="muted">- 一番上のリスト項目が「質問」、その直下の入れ子リストが「答え」。<br/>- Markdown/Asciidoc内に HTML タグは不要。<br/>- 開閉状態はブラウザに保存されます。</div>
   </div>
+  <article id="content" class="card content" aria-live="polite"></article>
+</main>
 
-<script>
+  </div><script>
 /**
  * ★ ここをあなたのリポジトリに合わせて編集してください ★
  * - docs/ 配下に Markdown(.md) や Asciidoc(.adoc) を追加
@@ -193,7 +190,7 @@ function hasNestedDirectOrWrapped(li) {
 }
 
 function makeQAFromLI(li, file, idxRef) {
-  // 見出しテキスト（質問）を抽出: ネストされたリストやそのラッパーを取り除いてから textContent を得る
+  // 見出しテキスト（質問）
   const temp = li.cloneNode(true);
   temp.querySelectorAll('ul, ol, .ulist, .olist').forEach(el => el.remove());
   const qText = (temp.textContent || '').trim() || '項目';
@@ -213,8 +210,25 @@ function makeQAFromLI(li, file, idxRef) {
   body.className = 'qa-body';
   body.id = bodyId;
 
-  // 元の LI の子ノードを丸ごと body に移動（テキスト・段落・ネストリストを全て格納）
-  while (li.firstChild) body.appendChild(li.firstChild);
+  // ★ 重複の原因：質問テキストも一緒に body に入っていた
+  // 対策：入れ子の UL/OL（または Asciidoc の .ulist/.olist ラッパー）だけを body に移動
+  const nestedNodes = [];
+  for (const c of Array.from(li.children)) {
+    if (!c) continue;
+    const tag = c.tagName;
+    if (tag === 'UL' || tag === 'OL') {
+      nestedNodes.push(c);
+      continue;
+    }
+    if (c.classList && (c.classList.contains('ulist') || c.classList.contains('olist'))) {
+      // ラッパーごと移動（タイトル等が付くこともあるため）
+      const inner = c.querySelector(':scope > ul, :scope > ol');
+      if (inner) nestedNodes.push(c);
+    }
+  }
+
+  // 取得した入れ子だけを移動（質問テキストなどは破棄され、ヘッダーのみ表示）
+  nestedNodes.forEach(n => body.appendChild(n));
 
   // ローカルストレージで状態復元
   const key = `qa:${file}:${hashString(qText)}`;
@@ -274,6 +288,5 @@ function hashString(s) { let h=0; for (let i=0;i<s.length;i++) { h=(h<<5)-h + s.
   const file = params.get('doc') || DOCS[0].file;
   loadDoc(file);
 })();
-</script>
-</body>
+</script></body>
 </html>
