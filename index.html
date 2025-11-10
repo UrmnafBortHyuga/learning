@@ -41,6 +41,7 @@
     .qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
     .qa-body { padding: 0 14px 14px 46px; display:none; }
     .qa-item[aria-expanded="true"] .qa-body { display:block; }
+    .qa-item[aria-expanded="false"] .qa-body { display:none !important; }
     .qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
 
     /* Markdown/Asciidoc本文の共通スタイル */
@@ -89,7 +90,6 @@
  */
 const DOCS = [
   { file: 'cs.md', title: 'CS 基礎' },
-  { file: 'hoge.md', title: 'ほげ' },
   { file: 'net.adoc', title: 'ネットワーク基礎(Asciidoc)' },
 ];
 const DOCS_BASE = 'docs/';
@@ -159,59 +159,80 @@ async function loadDoc(file) {
 
 // --- リストを Q&A に変換（Markdown/Asciidoc 共通 DOM を後処理）---
 function enhanceListsToQA(file) {
-  // すべての UL/OL を探索し、子 LI が UL/OL を内包するものを Q&A 化
-  const lists = $content.querySelectorAll('ul, ol');
-  let idx = 0;
-  lists.forEach(list => {
-    list.querySelectorAll(':scope > li').forEach(li => {
-      const nested = li.querySelector(':scope > ul, :scope > ol');
-      if (!nested) return; // 入れ子がなければスキップ
-
-      const question = li.cloneNode(true); // テキスト抽出用
-      // 内側 UL/OL を除いた質問テキスト
-      question.querySelectorAll('ul, ol').forEach(el => el.remove());
-      const qText = (question.textContent || '').trim();
-
-      // 元 LI を Q&A UI に差し替え
-      const qa = document.createElement('li');
-      qa.className = 'qa-item';
-      qa.setAttribute('aria-expanded', 'false');
-
-      const btn = document.createElement('button');
-      btn.className = 'qa-header';
-      btn.setAttribute('type', 'button');
-      btn.setAttribute('aria-controls', `qa-body-${idx}`);
-      btn.innerHTML = `<span class="qa-toggle" aria-hidden="true">＋</span><span>${escapeHtml(qText)}</span>`;
-
-      const body = document.createElement('div');
-      body.className = 'qa-body';
-      body.id = `qa-body-${idx}`;
-      body.appendChild(nested);
-
-      // キー: ページ + 質問テキストのハッシュ
-      const key = `qa:${file}:${hashString(qText)}`;
-      const open = localStorage.getItem(key) === '1';
-      qa.setAttribute('aria-expanded', open ? 'true' : 'false');
-
-      btn.addEventListener('click', () => {
-        const nowOpen = qa.getAttribute('aria-expanded') !== 'true';
-        qa.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
-        btn.querySelector('.qa-toggle').textContent = nowOpen ? '－' : '＋';
-        localStorage.setItem(key, nowOpen ? '1' : '0');
-      });
-
-      // 初期トグル記号
-      if (open) btn.querySelector('.qa-toggle').textContent = '－';
-
-      qa.appendChild(btn);
-      qa.appendChild(body);
-      li.replaceWith(qa);
-      idx++;
-    });
-  });
+  // 再帰ではなく反復で“深い層から”順にQA化していくと、3段以上でも漏れなく閉じられる
+  const idxRef = { value: 0 };
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const items = $content.querySelectorAll('li');
+    for (const li of Array.from(items)) {
+      // 既にQA化されている項目はスキップ
+      if (li.classList && li.classList.contains('qa-item')) continue;
+      if (li.closest('.qa-item') && !hasNestedDirectOrWrapped(li)) continue;
+      if (!hasNestedDirectOrWrapped(li)) continue;
+      makeQAFromLI(li, file, idxRef);
+      changed = true;
+    }
+  }
 
   // 検索: 単純なハイライト & ジャンプ（ページ内）
   setupSearch();
+}
+
+function hasNestedDirectOrWrapped(li) {
+  // 直下に UL/OL、または Asciidoctor の div.ulist/olist ラッパーがあるか
+  for (const c of Array.from(li.children)) {
+    if (!c) continue;
+    const tag = c.tagName;
+    if (tag === 'UL' || tag === 'OL') return true;
+    if (c.classList && (c.classList.contains('ulist') || c.classList.contains('olist'))) {
+      if (c.querySelector(':scope > ul, :scope > ol')) return true;
+    }
+  }
+  return false;
+}
+
+function makeQAFromLI(li, file, idxRef) {
+  // 見出しテキスト（質問）を抽出: ネストされたリストやそのラッパーを取り除いてから textContent を得る
+  const temp = li.cloneNode(true);
+  temp.querySelectorAll('ul, ol, .ulist, .olist').forEach(el => el.remove());
+  const qText = (temp.textContent || '').trim() || '項目';
+
+  const qa = document.createElement('li');
+  qa.className = 'qa-item';
+  qa.setAttribute('aria-expanded', 'false');
+
+  const bodyId = `qa-body-${idxRef.value}`;
+  const btn = document.createElement('button');
+  btn.className = 'qa-header';
+  btn.setAttribute('type', 'button');
+  btn.setAttribute('aria-controls', bodyId);
+  btn.innerHTML = `<span class="qa-toggle" aria-hidden="true">＋</span><span>${escapeHtml(qText)}</span>`;
+
+  const body = document.createElement('div');
+  body.className = 'qa-body';
+  body.id = bodyId;
+
+  // 元の LI の子ノードを丸ごと body に移動（テキスト・段落・ネストリストを全て格納）
+  while (li.firstChild) body.appendChild(li.firstChild);
+
+  // ローカルストレージで状態復元
+  const key = `qa:${file}:${hashString(qText)}`;
+  const open = localStorage.getItem(key) === '1';
+  qa.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) btn.querySelector('.qa-toggle').textContent = '－';
+
+  btn.addEventListener('click', () => {
+    const nowOpen = qa.getAttribute('aria-expanded') !== 'true';
+    qa.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+    btn.querySelector('.qa-toggle').textContent = nowOpen ? '－' : '＋';
+    localStorage.setItem(key, nowOpen ? '1' : '0');
+  });
+
+  qa.appendChild(btn);
+  qa.appendChild(body);
+  li.replaceWith(qa);
+  idxRef.value++;
 }
 
 function setupSearch() {
