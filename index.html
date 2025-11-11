@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
@@ -16,12 +15,13 @@
       --card: #f9fafb; /* gray-50 */
       --border: #e5e7eb; /* gray-200 */
       --accent: #2563eb; /* blue-600 */
-      --indent-step: 12px; /* ネストインデントの基本幅（PC）*/
     }
     html, body { height: 100%; }
     body {
       margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
       color: var(--fg); background: var(--bg);
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     .container { max-width: 880px; margin: 0 auto; padding: 16px; }
     header { display:flex; gap:12px; align-items:center; justify-content:space-between; padding: 12px 0 6px; position: sticky; top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid var(--border); }
@@ -34,51 +34,51 @@
     a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
     button.primary, a.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
     main { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }/* 折りたたみ UI */
-.qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; --level: 0; }
-.qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
-.qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
-.qa-body { padding: 0 14px 14px 46px; display:none; }
-.qa-body ul, .qa-body ol { margin: .5em 0 .5em 1.2em; }
-.qa-item[aria-expanded="true"] .qa-body { display:block; }
-.qa-item[aria-expanded="false"] .qa-body { display:none !important; }
-.qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 
-/* Markdown/Asciidoc本文の共通スタイル */
-.content :is(h1,h2,h3) { scroll-margin-top: 80px; }
-.content h2 { border-left: 4px solid var(--accent); padding-left: 8px; }
-.content pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; overflow:auto; }
-.content code:not(pre code) { background:#f3f4f6; padding:2px 6px; border-radius:6px; }
-.muted { color: var(--fg-muted); font-size: 12px; }
+    /* 折りたたみ UI（PC 基本） */
+    .qa-item { list-style: none; border: 1px solid var(--border); border-radius: 12px; background: #fff; margin: 10px 0; }
+    .qa-header { display:flex; align-items:center; gap:10px; width:100%; background: transparent; border:0; text-align:left; padding: 12px 14px; font-weight: 600; cursor:pointer; border-radius:12px; }
+    .qa-header:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .qa-toggle { width: 22px; height: 22px; display:inline-grid; place-items:center; border:1px solid var(--border); border-radius:6px; font-weight:700; }
+    .qa-body { padding: 0 14px 14px 46px; display:none; }
+    .qa-body ul, .qa-body ol { margin: .5em 0 .5em 1.2em; }
+    .qa-item[aria-expanded="true"] .qa-body { display:block; }
+    .qa-item[aria-expanded="false"] .qa-body { display:none !important; }
+    .qa-item[aria-expanded="true"] .qa-toggle { background: var(--accent); color:#fff; border-color: var(--accent); }
 
-@media (max-width: 600px) {
-  header { gap: 6px; }
-  .container { padding: 8px; }
-  .card { padding: 12px; border-radius: 12px; }
-  .controls { width: 100%; }
-  .controls > * { flex: 1 1 auto; min-width: 0; }
-  select { min-width: 45%; }
+    /* Markdown/Asciidoc本文の共通スタイル */
+    .content { overflow-wrap: anywhere; }
+    .content :is(h1,h2,h3) { scroll-margin-top: 80px; }
+    .content h2 { border-left: 4px solid var(--accent); padding-left: 8px; }
+    .content pre { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; overflow:auto; }
+    .content code:not(pre code) { background:#f3f4f6; padding:2px 6px; border-radius:6px; }
+    .muted { color: var(--fg-muted); font-size: 12px; }
 
-  /* モバイルは“右へ押し出す”のではなく“下へ積む”レイアウト */
-  .qa-header { padding: 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
-  .qa-toggle { width: 24px; height: 24px; }
-  .qa-body { padding: 8px 12px 12px 12px; }
+    /* ===== モバイル最適化（Pixel 7a 含む） ===== */
+    @media (max-width: 600px) {
+      .container { padding: 8px; }
+      header { gap: 6px; }
+      .card { padding: 12px; border-radius: 12px; }
+      .controls { width: 100%; }
+      .controls > * { flex: 1 1 auto; min-width: 0; }
+      select { min-width: 46%; }
 
-  /* ネストは左余白を増やさず、左ボーダーの太さと色で段を示す */
-  .qa-item { margin: 8px 0; border-left: calc(3px + var(--level) * 2px) solid var(--border); }
-  .qa-item[aria-expanded="true"] { border-left-color: var(--accent); }
-  /* 左余白の累積を抑える */
-  .qa-body { padding-left: 12px; }
+      /* 右へ押し出さず、下に積むレイアウト */
+      .qa-header { padding: 10px; display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; }
+      .qa-toggle { width: 28px; height: 28px; }
+      .qa-body { padding: 8px 10px 12px 10px; }
 
-  /* 読みやすさ（Pixel 7a想定） */
-  .content { font-size: 16px; line-height: 1.7; }
-}
-  .controls { width: 100%; }
-  .controls > * { flex: 1 1 auto; }
-  select { min-width: 40%; }
-}
+      /* ネストの視覚化は一定の左ボーダーのみ（厚みは固定） */
+      .qa-item { margin: 6px 0; border-left: 3px solid var(--border); }
+      .qa-item[aria-expanded="true"] { border-left-color: var(--accent); }
+      /* 更に深い入れ子でも左余白を増やさない */
+      .qa-body { padding-left: 10px; }
+      .qa-body .qa-item { border-left: 3px solid var(--border); }
 
+      /* 文字の読みやすさ */
+      .content { font-size: clamp(15px, 4vw, 17px); line-height: 1.8; }
+    }
   </style>
 </head>
 <body>
@@ -93,14 +93,17 @@
         <a class="btn" id="openRaw" target="_blank" rel="noopener">Rawを開く</a>
         <a class="btn" id="editLink" target="_blank" rel="noopener">GitHubで編集</a>
       </div>
-    </header><main>
-  <div class="card">
-    <div class="muted">- 一番上のリスト項目が「質問」、その直下の入れ子リストが「答え」。<br/>- Markdown/Asciidoc内に HTML タグは不要。<br/>- 開閉状態はブラウザに保存されます。</div>
-  </div>
-  <article id="content" class="card content" aria-live="polite"></article>
-</main>
+    </header>
 
-  </div><script>
+    <main>
+      <div class="card">
+        <div class="muted">- 一番上のリスト項目が「質問」、その直下の入れ子リストが「答え」。<br/>- Markdown/Asciidoc内に HTML タグは不要。<br/>- 開閉状態はブラウザに保存されます。</div>
+      </div>
+      <article id="content" class="card content" aria-live="polite"></article>
+    </main>
+  </div>
+
+<script>
 /**
  * ★ ここをあなたのリポジトリに合わせて編集してください ★
  * - docs/ 配下に Markdown(.md) や Asciidoc(.adoc) を追加
@@ -338,5 +341,6 @@ function hashString(s) { let h=0; for (let i=0;i<s.length;i++) { h=(h<<5)-h + s.
   const file = params.get('doc') || DOCS[0].file;
   loadDoc(file);
 })();
-</script></body>
+</script>
+</body>
 </html>
